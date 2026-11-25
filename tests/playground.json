@@ -1,0 +1,55 @@
+{
+  "steps": [
+    {
+      "step": "setSiteOptions",
+      "options": {
+        "permalink_structure": "/%postname%/",
+        "blogname": "CiteSurge fixture"
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "citesurge-markdown-for-ai-agents/citesurge-markdown-for-ai-agents.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire '/wordpress/wp-load.php';\n$posts = [\n\t['Public Example', 'public-example', 'post', 'Markdown fixture text.', ''],\n\t['Public Page', 'public-page', 'page', 'Page fixture text.', ''],\n\t['Protected Example', 'protected-example', 'post', 'Protected fixture text.', 'fixture'],\n];\nforeach ($posts as [$title, $slug, $type, $text, $password]) {\n\twp_insert_post(['post_title'=>$title, 'post_name'=>$slug, 'post_status'=>'publish',\n\t\t'post_type'=>$type, 'post_password'=>$password, 'post_content'=>'<p>'.$text.'</p>']);\n}\n$front = wp_insert_post(['post_title'=>'Static Home', 'post_name'=>'static-home',\n\t'post_status'=>'publish', 'post_type'=>'page', 'post_content'=>'<p>Static home fixture text.</p>']);\nupdate_option('show_on_front', 'page');\nupdate_option('page_on_front', $front);\nflush_rewrite_rules();\n"
+    },
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/existing-llms-test.php",
+      "data": "<?php\nadd_action('template_redirect', static function () {\n\tif (($_SERVER['REQUEST_URI'] ?? '') === '/llms.txt?fixture_existing=1') {\n\t\tstatus_header(200);\n\t\theader('Content-Type: text/plain');\n\t\techo 'Existing index response';\n\t\texit;\n\t}\n}, 0);\n\nadd_filter('404_template', static function ($template) {\n\tif (($_SERVER['REQUEST_URI'] ?? '') === '/llms.txt?fixture_template=1') {\n\t\treturn __DIR__.'/llms-provider/template.php';\n\t}\n\treturn $template;\n});\n"
+    },
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins/llms-provider"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/llms-provider/template.php",
+      "data": "<?php status_header(200); header('Content-Type: text/plain'); echo 'Existing template response';"
+    },
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/themes/citesurge-fixture-theme"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/themes/citesurge-fixture-theme/style.css",
+      "data": "/* Theme Name: CiteSurge Fixture Theme */"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/themes/citesurge-fixture-theme/index.php",
+      "data": "<!doctype html><html><head><title><?php bloginfo('name'); ?></title><?php wp_head(); ?></head>\n<body><main><?php while (have_posts()) { the_post(); the_content(); } ?></main></body></html>"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require '/wordpress/wp-load.php'; switch_theme('citesurge-fixture-theme');"
+    }
+  ]
+}

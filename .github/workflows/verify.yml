@@ -1,0 +1,51 @@
+name: Verify WordPress plugin
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f # 2.35.5
+        with:
+          php-version: '8.1'
+          extensions: dom, iconv
+          coverage: none
+      - run: composer install --no-dev --no-interaction --prefer-dist
+      - run: php tests/negotiation.php && php tests/converter.php && php tests/routes.php
+      - name: Test HTTP responses in WordPress Playground
+        shell: bash
+        run: |
+          npx --yes @wp-playground/cli@3.1.66 server --port 9413 --workers 1 --wp 7.1 --php 8.3 \
+            --mount-dir "$PWD" /wordpress/wp-content/plugins/citesurge-markdown-for-ai-agents \
+            --blueprint tests/playground.json > playground.log 2>&1 &
+          playground_pid=$!
+          trap 'kill "$playground_pid" 2>/dev/null || true' EXIT
+          if ! node tests/http.mjs; then cat playground.log; exit 1; fi
+      - name: Stage the release files
+        run: |
+          plugin=dist/citesurge-markdown-for-ai-agents
+          mkdir -p "$plugin"
+          cp -r citesurge-markdown-for-ai-agents.php LICENSE readme.txt composer.json composer.lock src vendor "$plugin/"
+      - name: Run WordPress Plugin Check
+        shell: bash
+        run: |
+          cat > .wp-env.json <<'JSON'
+          {
+            "core": "https://wordpress.org/wordpress-7.1.zip",
+            "phpVersion": "8.3",
+            "plugins": [
+              "./dist/citesurge-markdown-for-ai-agents"
+            ]
+          }
+          JSON
+          npx --yes @wordpress/env@12.2.0 start
+          trap 'npx --yes @wordpress/env@12.2.0 stop' EXIT
+          npx --yes @wordpress/env@12.2.0 run cli wp plugin install plugin-check --activate
+          npx --yes @wordpress/env@12.2.0 run cli wp --require=./wp-content/plugins/plugin-check/cli.php plugin check citesurge-markdown-for-ai-agents --format=table
