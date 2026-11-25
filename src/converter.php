@@ -99,8 +99,9 @@ function metadata( DOMXPath $xpath ): string {
 
 function structured_data( DOMXPath $xpath ): array {
 	$blocks = [];
-	foreach ( $xpath->query( '//script[@type]' ) as $element ) {
-		if ( 'application/ld+json' !== strtolower( trim( $element->getAttribute( 'type' ) ) ) ) {
+	foreach ( $xpath->query( '//script[@type and not(ancestor::template or ancestor::noscript or ancestor::svg)]' ) as $element ) {
+		$type = explode( ';', $element->getAttribute( 'type' ), 2 )[0];
+		if ( 'application/ld+json' !== strtolower( trim( $type ) ) ) {
 			continue;
 		}
 		$value = trim( $element->textContent );

@@ -10,10 +10,11 @@ use function CiteSurge\Markdown\to_markdown;
 $html = '<!doctype html><html><head><title>Example</title>'
 	. '<meta property="og:description" content="Other"><meta name="description" content="Better">'
 	. '<meta property="og:image" content="https://example.test/img.jpg">'
-	. '<script type=" Application/LD+JSON ">{"name":"Example"}</script></head>'
+	. '<script type=" Application/LD+JSON ; charset=utf-8">{"name":"Example"}</script></head>'
 	. '<body><header>Global header</header><nav>Menu</nav><main><article>'
 	. '<header><h1>Article title</h1></header><p>Public page.</p>'
-	. '<footer>Section notes</footer></article></main><footer>Global footer</footer></body></html>';
+	. '<footer>Section notes</footer></article></main><footer>Global footer</footer>'
+	. '<template><script type="application/ld+json">{"name":"Inert marker"}</script></template></body></html>';
 
 $markdown = to_markdown( $html, 'UTF-8' );
 foreach ( [ 'title: "Example"', 'description: "Better"', '# Article title', 'Public page.', 'Section notes', '{"name":"Example"}' ] as $text ) {
@@ -21,7 +22,7 @@ foreach ( [ 'title: "Example"', 'description: "Better"', '# Article title', 'Pub
 		throw new RuntimeException( 'Missing Markdown: ' . $text );
 	}
 }
-foreach ( [ 'Global header', 'Global footer', 'Menu', 'Other' ] as $text ) {
+foreach ( [ 'Global header', 'Global footer', 'Menu', 'Other', 'Inert marker' ] as $text ) {
 	if ( str_contains( $markdown, $text ) ) {
 		throw new RuntimeException( 'Unexpected Markdown: ' . $text );
 	}
