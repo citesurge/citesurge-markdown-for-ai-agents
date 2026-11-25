@@ -48,4 +48,4 @@ jobs:
           JSON
           npx --yes @wordpress/env@12.2.0 start
           trap 'npx --yes @wordpress/env@12.2.0 stop' EXIT
-          npx --yes @wordpress/env@12.2.0 run cli wp plugin check citesurge-markdown-for-ai-agents --format=table
+          npx --yes @wordpress/env@12.2.0 run cli wp --require=./wp-content/plugins/plugin-check/cli.php plugin check citesurge-markdown-for-ai-agents --format=table
