@@ -8,6 +8,10 @@ use DOMNode;
 use DOMXPath;
 use League\HTMLToMarkdown\HtmlConverter;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 const MAX_HTML_BYTES = 6 * 1024 * 1024;
 const MAX_RENDER_UNITS = 64 * 1024 * 1024;
 
@@ -21,16 +25,32 @@ function to_markdown( string $html, string $charset ): ?string {
 		if ( false === $utf8 || ! preg_match( '//u', $utf8 ) ) {
 			return null;
 		}
-		$document = new DOMDocument( '1.0', 'UTF-8' );
-		if ( ! $document->loadHTML( '<?xml encoding="UTF-8">' . $utf8, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING ) ) {
-			return null;
-		}
-		if ( ! within_render_budget( $document ) ) {
+		$document = parse_document( $utf8 );
+		if ( ! $document || ! within_render_budget( $document ) ) {
 			return null;
 		}
 		return render_document( $document );
 	} catch ( \Throwable $error ) {
 		return null;
+	}
+}
+
+function parse_document( string $html ): ?DOMDocument {
+	$document = new DOMDocument( '1.0', 'UTF-8' );
+	$previous = libxml_use_internal_errors( true );
+	libxml_clear_errors();
+	try {
+		$loaded = $document->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING );
+		foreach ( libxml_get_errors() as $error ) {
+			if ( LIBXML_ERR_FATAL === $error->level ) {
+				return null;
+			}
+		}
+
+		return $loaded ? $document : null;
+	} finally {
+		libxml_clear_errors();
+		libxml_use_internal_errors( $previous );
 	}
 }
 
@@ -65,9 +85,10 @@ function metadata( DOMXPath $xpath ): string {
 			array_unshift( $queries, '/html/head/title' );
 		}
 		foreach ( $queries as $query ) {
-			$value = trim( (string) $xpath->evaluate( 'string(' . $query . ')' ) );
+			$value = (string) $xpath->evaluate( 'string(' . $query . ')' );
+			$value = trim( preg_replace( '/[\p{Cc}\s]+/u', ' ', $value ) ?? '' );
 			if ( '' !== $value ) {
-				$fields[] = $key . ': ' . json_encode( $value, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR );
+				$fields[] = $key . ': ' . json_encode( $value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR );
 				break;
 			}
 		}
@@ -78,7 +99,10 @@ function metadata( DOMXPath $xpath ): string {
 
 function structured_data( DOMXPath $xpath ): array {
 	$blocks = [];
-	foreach ( $xpath->query( '//script[@type="application/ld+json"]' ) as $element ) {
+	foreach ( $xpath->query( '//script[@type]' ) as $element ) {
+		if ( 'application/ld+json' !== strtolower( trim( $element->getAttribute( 'type' ) ) ) ) {
+			continue;
+		}
 		$value = trim( $element->textContent );
 		if ( '' === $value ) {
 			continue;

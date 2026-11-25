@@ -18,11 +18,11 @@ jobs:
           extensions: dom, iconv
           coverage: none
       - run: composer install --no-dev --no-interaction --prefer-dist
-      - run: php tests/negotiation.php && php tests/converter.php
+      - run: php tests/negotiation.php && php tests/converter.php && php tests/routes.php
       - name: Test HTTP responses in WordPress Playground
         shell: bash
         run: |
-          npx --yes @wp-playground/cli@3.1.66 server --port 9413 --workers 1 --wp 6.9 --php 8.3 \
+          npx --yes @wp-playground/cli@3.1.66 server --port 9413 --workers 1 --wp 7.1 --php 8.3 \
             --mount-dir "$PWD" /wordpress/wp-content/plugins/citesurge-markdown-for-ai-agents \
             --blueprint tests/playground.json > playground.log 2>&1 &
           playground_pid=$!
@@ -32,7 +32,20 @@ jobs:
         run: |
           plugin=dist/citesurge-markdown-for-ai-agents
           mkdir -p "$plugin"
-          cp -r citesurge-markdown-for-ai-agents.php LICENSE readme.txt src vendor "$plugin/"
-      - uses: WordPress/plugin-check-action@532794907ac28f4e76d043b89fcadc494e97b6ab # v1.1.8
-        with:
-          build-dir: dist/citesurge-markdown-for-ai-agents
+          cp -r citesurge-markdown-for-ai-agents.php LICENSE readme.txt composer.json composer.lock src vendor "$plugin/"
+      - name: Run WordPress Plugin Check
+        shell: bash
+        run: |
+          cat > .wp-env.json <<'JSON'
+          {
+            "core": "https://wordpress.org/wordpress-7.1.zip",
+            "phpVersion": "8.3",
+            "plugins": [
+              "./dist/citesurge-markdown-for-ai-agents",
+              "https://downloads.wordpress.org/plugin/plugin-check.latest-stable.zip"
+            ]
+          }
+          JSON
+          npx --yes @wordpress/env@12.2.0 start
+          trap 'npx --yes @wordpress/env@12.2.0 stop' EXIT
+          npx --yes @wordpress/env@12.2.0 run cli wp plugin check citesurge-markdown-for-ai-agents --format=table

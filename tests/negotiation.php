@@ -1,5 +1,7 @@
 <?php
 
+define( 'ABSPATH', __DIR__ );
+
 require __DIR__ . '/../src/negotiation.php';
 
 use function CiteSurge\Markdown\prefers_markdown;
@@ -8,6 +10,10 @@ $cases = [
 	'' => false,
 	'*/*' => false,
 	'text/*' => false,
+	'text/*,text/html;q=0.5' => false,
+	'text/html;q=invalid,*/*;q=1,text/markdown;q=0.8' => false,
+	'text/markdown;q=1;q=invalid,text/html;q=0.5' => false,
+	'text/markdown;q=0.8;q=0.6,text/html;q=0.7' => true,
 	'text/html' => false,
 	'text/markdown' => true,
 	'TEXT/MARKDOWN; Q=0.8,text/html;q=0.3' => true,

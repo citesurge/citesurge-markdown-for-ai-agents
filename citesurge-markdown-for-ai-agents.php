@@ -14,7 +14,11 @@
 
 namespace CiteSurge\Markdown;
 
-if ( ! defined( 'ABSPATH' ) || ! is_file( __DIR__ . '/vendor/autoload.php' ) ) {
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+if ( ! is_file( __DIR__ . '/vendor/autoload.php' ) ) {
 	return;
 }
 

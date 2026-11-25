@@ -41,6 +41,13 @@ for (const accept of ["text/html", "text/markdown;q=0,*/*", "text/markdown;q=0.8
   assert.match(await html.text(), /<link rel="alternate" type="text\/markdown" href="[^"]*public-example\.md"/);
 }
 
+const front = await get("/");
+assert.match(front.headers.get("link") ?? "", /\/\.md>; rel="alternate"/);
+await front.text();
+const frontAlias = await get("/.md");
+assert.match(frontAlias.headers.get("content-type") ?? "", /^text\/markdown/i);
+assert.match(await frontAlias.text(), /Static home fixture text/);
+
 const protectedPage = await get("/protected-example.md", "text/markdown");
 assert.doesNotMatch(protectedPage.headers.get("content-type") ?? "", /^text\/markdown/i);
 assert.doesNotMatch(await protectedPage.text(), /Protected fixture text/);
@@ -54,4 +61,6 @@ assert.doesNotMatch(links, /protected-example/);
 
 const existing = await get("/llms.txt?fixture_existing=1");
 assert.equal(await existing.text(), "Existing index response");
+const ownedTemplate = await get("/llms.txt?fixture_template=1");
+assert.equal(await ownedTemplate.text(), "Existing template response");
 console.log("WordPress negotiation, aliases, cache headers, private content, and llms.txt checks passed.");

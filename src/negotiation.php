@@ -2,36 +2,37 @@
 
 namespace CiteSurge\Markdown;
 
-function prefers_markdown( string $accept ): bool {
-	$html = quality( $accept, 'text/html' );
-	$markdown = quality( $accept, 'text/markdown' );
-
-	return $markdown > 0 && $markdown > $html;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-function quality( string $accept, string $type ): int {
-	$quality = 0;
-	$specificity = -1;
+function prefers_markdown( string $accept ): bool {
+	$qualities = [ 'text/markdown' => -1, 'text/html' => -1, 'text/*' => -1, '*/*' => -1 ];
 	foreach ( explode( ',', $accept ) as $preference ) {
 		[ $media, $parameters ] = array_pad( explode( ';', $preference, 2 ), 2, '' );
-		$weight = match ( strtolower( trim( $media ) ) ) {
-			$type => 2,
-			'text/*' => 1,
-			'*/*' => 0,
-			default => -1,
-		};
-		if ( $weight < 0 || $weight < $specificity ) {
+		$media = strtolower( trim( $media ) );
+		if ( ! array_key_exists( $media, $qualities ) ) {
 			continue;
 		}
 		$value = preference_quality( $parameters );
-		$quality = $weight > $specificity ? $value : max( $quality, $value );
-		$specificity = $weight;
+		if ( null !== $value ) {
+			$qualities[ $media ] = max( $qualities[ $media ], $value );
+		}
 	}
 
-	return $quality;
+	$html = 0;
+	foreach ( [ 'text/html', 'text/*', '*/*' ] as $range ) {
+		if ( $qualities[ $range ] >= 0 ) {
+			$html = $qualities[ $range ];
+			break;
+		}
+	}
+
+	return $qualities['text/markdown'] > $html;
 }
 
-function preference_quality( string $parameters ): int {
+function preference_quality( string $parameters ): ?int {
+	$quality = null;
 	foreach ( explode( ';', $parameters ) as $parameter ) {
 		[ $name, $value ] = array_pad( explode( '=', $parameter, 2 ), 2, '' );
 		if ( 'q' !== strtolower( trim( $name ) ) ) {
@@ -39,11 +40,10 @@ function preference_quality( string $parameters ): int {
 		}
 		$value = trim( $value );
 		if ( ! preg_match( '/^(?:0(?:\.[0-9]{0,3})?|1(?:\.0{0,3})?)$/D', $value ) ) {
-			return 0;
+			return null;
 		}
-
-		return (int) round( 1000 * (float) $value );
+		$quality ??= (int) round( 1000 * (float) $value );
 	}
 
-	return 1000;
+	return $quality ?? 1000;
 }
