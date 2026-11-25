@@ -1,0 +1,38 @@
+name: Verify WordPress plugin
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f # 2.35.5
+        with:
+          php-version: '8.1'
+          extensions: dom, iconv
+          coverage: none
+      - run: composer install --no-dev --no-interaction --prefer-dist
+      - run: php tests/negotiation.php && php tests/converter.php
+      - name: Test HTTP responses in WordPress Playground
+        shell: bash
+        run: |
+          npx --yes @wp-playground/cli@3.1.66 server --port 9413 --workers 1 --wp 6.9 --php 8.3 \
+            --mount-dir "$PWD" /wordpress/wp-content/plugins/citesurge-markdown-for-ai-agents \
+            --blueprint tests/playground.json > playground.log 2>&1 &
+          playground_pid=$!
+          trap 'kill "$playground_pid" 2>/dev/null || true' EXIT
+          if ! node tests/http.mjs; then cat playground.log; exit 1; fi
+      - name: Stage the release files
+        run: |
+          plugin=dist/citesurge-markdown-for-ai-agents
+          mkdir -p "$plugin"
+          cp -r citesurge-markdown-for-ai-agents.php LICENSE readme.txt src vendor "$plugin/"
+      - uses: WordPress/plugin-check-action@532794907ac28f4e76d043b89fcadc494e97b6ab # v1.1.8
+        with:
+          build-dir: dist/citesurge-markdown-for-ai-agents

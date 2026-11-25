@@ -1,0 +1,28 @@
+{
+  "steps": [
+    {
+      "step": "setSiteOptions",
+      "options": {
+        "permalink_structure": "/%postname%/",
+        "blogname": "CiteSurge fixture"
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "citesurge-markdown-for-ai-agents/citesurge-markdown-for-ai-agents.php"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire '/wordpress/wp-load.php';\n$posts = [\n\t['Public Example', 'public-example', 'post', 'Markdown fixture text.', ''],\n\t['Public Page', 'public-page', 'page', 'Page fixture text.', ''],\n\t['Protected Example', 'protected-example', 'post', 'Protected fixture text.', 'fixture'],\n];\nforeach ($posts as [$title, $slug, $type, $text, $password]) {\n\twp_insert_post(['post_title'=>$title, 'post_name'=>$slug, 'post_status'=>'publish',\n\t\t'post_type'=>$type, 'post_password'=>$password, 'post_content'=>'<p>'.$text.'</p>']);\n}\nflush_rewrite_rules();\n"
+    },
+    {
+      "step": "mkdir",
+      "path": "/wordpress/wp-content/mu-plugins"
+    },
+    {
+      "step": "writeFile",
+      "path": "/wordpress/wp-content/mu-plugins/existing-llms-test.php",
+      "data": "<?php\nadd_action('template_redirect', static function () {\n\tif (($_SERVER['REQUEST_URI'] ?? '') === '/llms.txt?fixture_existing=1') {\n\t\tstatus_header(200);\n\t\theader('Content-Type: text/plain');\n\t\techo 'Existing index response';\n\t\texit;\n\t}\n}, 0);\n"
+    }
+  ]
+}
